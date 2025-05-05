@@ -6,7 +6,7 @@ import io
 
 st.set_page_config(page_title="Excel Named Range Visualizer", layout="wide")
 
-# Inject CSS to allow word wrapping in markdown tables
+# Inject CSS to enable word wrapping in markdown table cells
 st.markdown("""
     <style>
     table td {
@@ -17,10 +17,10 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# OpenAI client initialization
+# Initialize OpenAI client
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-# --- Extract named references ---
+# --- Extract named references from workbook ---
 @st.cache_data(show_spinner=False)
 def extract_named_references(_wb):
     named_refs = {}
@@ -44,7 +44,7 @@ def extract_named_references(_wb):
                     pass
     return named_refs
 
-# --- Find dependencies between named references ---
+# --- Detect dependencies between named references ---
 @st.cache_data(show_spinner=False)
 def find_dependencies(named_refs):
     dependencies = {}
@@ -58,7 +58,7 @@ def find_dependencies(named_refs):
             dependencies[name] = []
     return dependencies
 
-# --- Create dependency graph ---
+# --- Create a Graphviz dependency graph ---
 def create_dependency_graph(dependencies):
     dot = graphviz.Digraph()
     for ref in dependencies:
@@ -68,7 +68,7 @@ def create_dependency_graph(dependencies):
             dot.edge(dep, ref)
     return dot
 
-# --- OpenAI GPT Call ---
+# --- Call OpenAI GPT for doc and Python formula ---
 @st.cache_data(show_spinner=False)
 def call_openai(prompt, max_tokens=100):
     try:
@@ -82,7 +82,7 @@ def call_openai(prompt, max_tokens=100):
     except Exception as e:
         return f"(Error: {e})"
 
-# --- Generate Documentation and Python formulas ---
+# --- Generate AI docs + Python translation ---
 @st.cache_data(show_spinner=False)
 def generate_ai_outputs(named_refs):
     results = []
@@ -105,21 +105,21 @@ def generate_ai_outputs(named_refs):
         })
     return results
 
-# --- Render Markdown Table with Wrapping ---
+# --- Markdown renderer with safe text wrapping ---
 def render_markdown_table(rows):
     headers = ["Named Reference", "AI Documentation", "Excel Formula", "Python Formula"]
     md = "| " + " | ".join(headers) + " |\n"
     md += "| " + " | ".join(["---"] * len(headers)) + " |\n"
     for row in rows:
         md += "| " + " | ".join([
-            str(row["Named Reference"]),
-            row["AI Documentation"].replace("\n", " "),
-            row["Excel Formula"].replace("\n", " "),
-            row["Python Formula"].replace("\n", " "),
+            str(row.get("Named Reference", "") or ""),
+            str(row.get("AI Documentation", "") or "").replace("\n", " "),
+            str(row.get("Excel Formula", "") or "").replace("\n", " "),
+            str(row.get("Python Formula", "") or "").replace("\n", " "),
         ]) + " |\n"
     return md
 
-# --- Main App ---
+# --- Streamlit UI ---
 st.title("📊 Excel Named Range Dependency Viewer with AI")
 
 uploaded_file = st.file_uploader("Upload an Excel (.xlsx) file", type=["xlsx"])
