@@ -1,19 +1,18 @@
 import streamlit as st
+from openai import OpenAI
 from openpyxl import load_workbook
 import graphviz
-import openai
 import io
-import re
 
 st.set_page_config(page_title="Excel Named Range Visualizer", layout="wide")
 
-# Load OpenAI API key
-openai.api_key = st.secrets.get("OPENAI_API_KEY")
+# Initialize OpenAI client
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 # --- Helper Functions ---
 
 @st.cache_data(show_spinner=False)
-def extract_named_references(_wb):  # Leading underscore to avoid hashing error
+def extract_named_references(_wb):
     named_refs = {}
     for name in _wb.defined_names:
         defined_name = _wb.defined_names[name]
@@ -55,19 +54,19 @@ def create_dependency_graph(dependencies):
         dot.node(ref)
     for ref, deps in dependencies.items():
         for dep in deps:
-            dot.edge(dep, ref)  # dep → ref
+            dot.edge(dep, ref)
     return dot
 
 @st.cache_data(show_spinner=False)
 def call_openai(prompt, max_tokens=100):
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-4",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.2,
             max_tokens=max_tokens
         )
-        return response.choices[0].message["content"].strip()
+        return response.choices[0].message.content.strip()
     except Exception as e:
         return f"(Error: {e})"
 
