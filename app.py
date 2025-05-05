@@ -116,7 +116,12 @@ if uploaded_file:
         st.subheader("🧠 AI-Generated Documentation and Python Translation")
         with st.spinner("Asking GPT for documentation and conversions..."):
             table_rows = generate_ai_outputs(named_refs)
-            st.dataframe(table_rows, use_container_width=True)
+            st.data_editor(
+                table_rows,
+                use_container_width=True,
+                disabled=True,
+                hide_index=True
+            )
 
     except Exception as e:
         st.error(f"⚠️ Failed to process file: {e}")
