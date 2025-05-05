@@ -7,7 +7,7 @@ st.set_page_config(page_title="Excel Named Range Visualizer", layout="wide")
 
 def extract_named_references(wb):
     named_refs = {}
-    for defined_name in wb.defined_names.definedName:
+    for defined_name in wb.defined_names.defined_names:
         if defined_name.attr_text and not defined_name.is_external:
             dests = list(defined_name.destinations)
             for sheet_name, ref in dests:
