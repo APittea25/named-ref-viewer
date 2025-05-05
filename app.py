@@ -10,11 +10,13 @@ st.set_page_config(page_title="Excel Named Range Visualizer", layout="wide")
 # Load OpenAI API key
 openai.api_key = st.secrets.get("OPENAI_API_KEY")
 
+# --- Helper Functions ---
+
 @st.cache_data(show_spinner=False)
-def extract_named_references(wb):
+def extract_named_references(_wb):  # Leading underscore to avoid hashing error
     named_refs = {}
-    for name in wb.defined_names:
-        defined_name = wb.defined_names[name]
+    for name in _wb.defined_names:
+        defined_name = _wb.defined_names[name]
 
         if defined_name.attr_text and not defined_name.is_external:
             dests = list(defined_name.destinations)
@@ -25,7 +27,7 @@ def extract_named_references(wb):
                     "formula": None
                 }
                 try:
-                    sheet = wb[sheet_name]
+                    sheet = _wb[sheet_name]
                     cell_ref = ref.split('!')[-1]
                     cell = sheet[cell_ref]
                     if cell.data_type == 'f':
@@ -92,6 +94,7 @@ def generate_ai_outputs(named_refs):
     return results
 
 # --- Streamlit App ---
+
 st.title("📊 Excel Named Range Dependency Viewer with AI")
 
 uploaded_file = st.file_uploader("Upload an Excel (.xlsx) file", type=["xlsx"])
@@ -101,7 +104,7 @@ if uploaded_file:
         wb = load_workbook(filename=io.BytesIO(uploaded_file.read()), data_only=False)
 
         st.subheader("📌 Named References Found")
-        named_refs = extract_named_references(wb)
+        named_refs = extract_named_references(_wb=wb)
         st.json(named_refs)
 
         st.subheader("🔗 Dependency Graph")
