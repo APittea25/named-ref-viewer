@@ -4,13 +4,23 @@ from openpyxl import load_workbook
 import graphviz
 import io
 
-# Set page layout
 st.set_page_config(page_title="Excel Named Range Visualizer", layout="wide")
 
-# Initialize OpenAI client with API key from Streamlit secrets
+# Inject CSS to allow word wrapping in markdown tables
+st.markdown("""
+    <style>
+    table td {
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        max-width: 300px;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# OpenAI client initialization
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-# --- Extract named references from Excel workbook ---
+# --- Extract named references ---
 @st.cache_data(show_spinner=False)
 def extract_named_references(_wb):
     named_refs = {}
@@ -34,7 +44,7 @@ def extract_named_references(_wb):
                     pass
     return named_refs
 
-# --- Detect dependencies between named references ---
+# --- Find dependencies between named references ---
 @st.cache_data(show_spinner=False)
 def find_dependencies(named_refs):
     dependencies = {}
@@ -48,7 +58,7 @@ def find_dependencies(named_refs):
             dependencies[name] = []
     return dependencies
 
-# --- Create a Graphviz dependency graph ---
+# --- Create dependency graph ---
 def create_dependency_graph(dependencies):
     dot = graphviz.Digraph()
     for ref in dependencies:
@@ -58,7 +68,7 @@ def create_dependency_graph(dependencies):
             dot.edge(dep, ref)
     return dot
 
-# --- Call OpenAI to explain formulas and convert them to Python ---
+# --- OpenAI GPT Call ---
 @st.cache_data(show_spinner=False)
 def call_openai(prompt, max_tokens=100):
     try:
@@ -72,7 +82,7 @@ def call_openai(prompt, max_tokens=100):
     except Exception as e:
         return f"(Error: {e})"
 
-# --- Generate AI documentation + Python translation for each named ref ---
+# --- Generate Documentation and Python formulas ---
 @st.cache_data(show_spinner=False)
 def generate_ai_outputs(named_refs):
     results = []
@@ -95,7 +105,21 @@ def generate_ai_outputs(named_refs):
         })
     return results
 
-# --- Streamlit App UI ---
+# --- Render Markdown Table with Wrapping ---
+def render_markdown_table(rows):
+    headers = ["Named Reference", "AI Documentation", "Excel Formula", "Python Formula"]
+    md = "| " + " | ".join(headers) + " |\n"
+    md += "| " + " | ".join(["---"] * len(headers)) + " |\n"
+    for row in rows:
+        md += "| " + " | ".join([
+            str(row["Named Reference"]),
+            row["AI Documentation"].replace("\n", " "),
+            row["Excel Formula"].replace("\n", " "),
+            row["Python Formula"].replace("\n", " "),
+        ]) + " |\n"
+    return md
+
+# --- Main App ---
 st.title("📊 Excel Named Range Dependency Viewer with AI")
 
 uploaded_file = st.file_uploader("Upload an Excel (.xlsx) file", type=["xlsx"])
@@ -116,12 +140,7 @@ if uploaded_file:
         st.subheader("🧠 AI-Generated Documentation and Python Translation")
         with st.spinner("Asking GPT for documentation and conversions..."):
             table_rows = generate_ai_outputs(named_refs)
-            st.data_editor(
-                table_rows,
-                use_container_width=True,
-                disabled=True,
-                hide_index=True
-            )
+            st.markdown(render_markdown_table(table_rows), unsafe_allow_html=True)
 
     except Exception as e:
         st.error(f"⚠️ Failed to process file: {e}")
