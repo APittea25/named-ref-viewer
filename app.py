@@ -4,19 +4,18 @@ from openpyxl import load_workbook
 import graphviz
 import io
 
+# Set page layout
 st.set_page_config(page_title="Excel Named Range Visualizer", layout="wide")
 
-# Initialize OpenAI client
+# Initialize OpenAI client with API key from Streamlit secrets
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-# --- Helper Functions ---
-
+# --- Extract named references from Excel workbook ---
 @st.cache_data(show_spinner=False)
 def extract_named_references(_wb):
     named_refs = {}
     for name in _wb.defined_names:
         defined_name = _wb.defined_names[name]
-
         if defined_name.attr_text and not defined_name.is_external:
             dests = list(defined_name.destinations)
             for sheet_name, ref in dests:
@@ -35,6 +34,7 @@ def extract_named_references(_wb):
                     pass
     return named_refs
 
+# --- Detect dependencies between named references ---
 @st.cache_data(show_spinner=False)
 def find_dependencies(named_refs):
     dependencies = {}
@@ -48,6 +48,7 @@ def find_dependencies(named_refs):
             dependencies[name] = []
     return dependencies
 
+# --- Create a Graphviz dependency graph ---
 def create_dependency_graph(dependencies):
     dot = graphviz.Digraph()
     for ref in dependencies:
@@ -57,6 +58,7 @@ def create_dependency_graph(dependencies):
             dot.edge(dep, ref)
     return dot
 
+# --- Call OpenAI to explain formulas and convert them to Python ---
 @st.cache_data(show_spinner=False)
 def call_openai(prompt, max_tokens=100):
     try:
@@ -70,6 +72,7 @@ def call_openai(prompt, max_tokens=100):
     except Exception as e:
         return f"(Error: {e})"
 
+# --- Generate AI documentation + Python translation for each named ref ---
 @st.cache_data(show_spinner=False)
 def generate_ai_outputs(named_refs):
     results = []
@@ -92,8 +95,7 @@ def generate_ai_outputs(named_refs):
         })
     return results
 
-# --- Streamlit App ---
-
+# --- Streamlit App UI ---
 st.title("📊 Excel Named Range Dependency Viewer with AI")
 
 uploaded_file = st.file_uploader("Upload an Excel (.xlsx) file", type=["xlsx"])
