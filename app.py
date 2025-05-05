@@ -2,8 +2,11 @@ import streamlit as st
 from openpyxl import load_workbook
 import graphviz
 import io
+import re
 
 st.set_page_config(page_title="Excel Named Range Visualizer", layout="wide")
+
+# --- Helper Functions ---
 
 def extract_named_references(wb):
     named_refs = {}
@@ -49,6 +52,26 @@ def create_dependency_graph(dependencies):
             dot.edge(dep, ref)  # dep → ref
     return dot
 
+def convert_excel_to_python(formula):
+    if not formula:
+        return ""
+    f = formula.lstrip("=").strip()
+
+    # Basic replacements
+    f = re.sub(r"SUM\(([^)]+)\)", r"sum([\1])", f, flags=re.IGNORECASE)
+    f = f.replace("^", "**").replace("&", "+")
+    f = re.sub(r"\bIF\(([^,]+),([^,]+),([^)]+)\)", r"(\2 if \1 else \3)", f, flags=re.IGNORECASE)
+    return f
+
+def generate_doc(formula):
+    if not formula:
+        return "Constant or no formula."
+    if "SUM" in formula.upper():
+        return "This calculates the sum of a range of values."
+    if "IF" in formula.upper():
+        return "This performs a conditional check and returns different values."
+    return "Performs a basic arithmetic or reference-based calculation."
+
 # --- Streamlit App ---
 st.title("📊 Excel Named Range Dependency Viewer")
 
@@ -58,14 +81,35 @@ if uploaded_file:
     try:
         wb = load_workbook(filename=io.BytesIO(uploaded_file.read()), data_only=False)
 
-        st.subheader("📌 Named References Found")
+        # Step 1: Extract named references and formulas
         named_refs = extract_named_references(wb)
+
+        # Step 2: Show Named References JSON
+        st.subheader("📌 Named References")
         st.json(named_refs)
 
-        st.subheader("🔗 Dependency Graph")
+        # Step 3: Show Dependency Graph
         dependencies = find_dependencies(named_refs)
+        st.subheader("🔗 Dependency Graph")
         dot = create_dependency_graph(dependencies)
         st.graphviz_chart(dot)
+
+        # Step 4: Generate table with docs + formulas
+        st.subheader("🧠 Named Reference Details")
+
+        table_rows = []
+        for name, info in named_refs.items():
+            excel_formula = info.get("formula", "")
+            doc = generate_doc(excel_formula)
+            python_formula = convert_excel_to_python(excel_formula)
+            table_rows.append({
+                "Named Reference": name,
+                "AI Documentation": doc,
+                "Excel Formula": excel_formula,
+                "Python Formula": python_formula,
+            })
+
+        st.dataframe(table_rows, use_container_width=True)
 
     except Exception as e:
         st.error(f"⚠️ Failed to process file: {e}")
