@@ -7,7 +7,9 @@ st.set_page_config(page_title="Excel Named Range Visualizer", layout="wide")
 
 def extract_named_references(wb):
     named_refs = {}
-    for defined_name in wb.defined_names.defined_names:
+    for name in wb.defined_names:
+        defined_name = wb.defined_names[name]
+
         if defined_name.attr_text and not defined_name.is_external:
             dests = list(defined_name.destinations)
             for sheet_name, ref in dests:
@@ -55,7 +57,7 @@ uploaded_file = st.file_uploader("Upload an Excel (.xlsx) file", type=["xlsx"])
 if uploaded_file:
     try:
         wb = load_workbook(filename=io.BytesIO(uploaded_file.read()), data_only=False)
-        
+
         st.subheader("📌 Named References Found")
         named_refs = extract_named_references(wb)
         st.json(named_refs)
